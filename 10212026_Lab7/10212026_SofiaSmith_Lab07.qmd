@@ -1,0 +1,212 @@
+---
+title: "10212026_ClassWork"
+author: "Sofia Smith (200320101)"
+date: 10-21-2026
+format: pdf
+---
+
+## Background
+
+Today we explore some unsupervised machine learning techniques that are very popular in bioinformatics, including clustering and dimentionality reduction methods.
+
+## K-means clustering
+
+The main funciotn in "base R" for K-means is called `kmeans()`.
+
+Before going deep lets's make up some data to cluster where we know what the answer should be. For this we can use the `rnorm()`.
+
+```{r}
+rnorm(10)
+```
+
+```{r}
+hist(rnorm(10000))
+```
+
+#### Q. Return 30 numbers centered at +3 and another 30 centered at -3.
+
+```{r}
+x <- c( rnorm(30, mean=3),
+        rnorm(30, mean=-3) )
+x
+```
+
+```{r}
+z <- cbind(x=x, y=rev(x))
+head(z)
+```
+
+```{r}
+plot(z)
+```
+
+Reminder on how to find out what you need for a new function:
+```{r}
+?kmeans()
+```
+
+Now let's use it
+```{r}
+k <- kmeans(z, centers=2)
+k
+```
+> This list of "available componants" are saved in a list that you can access via `k$[wvr componant you want]`
+
+#### Q. How do you get at the main clustering result (i.e. the "clustering vector")
+```{r}
+k$cluster
+```
+
+#### Q. Make a results figure showing our data colored by cluster membership. Bonus: add cluster centers in a different color.
+
+```{r}
+plot(z, col=k$cluster)
+points(k$centers, col=4, pch=16, cex=1.5)
+```
+
+#### Run `kmeans()` again and cluster into 4 groups and show the results in a figure like above.
+
+```{r}
+k2 <- kmeans(z, centers=4)
+plot(z, col=k2$cluster)
+points(k2$centers, col=7, pch=16, cex=1.5)
+```
+
+
+#### Q. Run `kmeans()` with different values of `centers` between 1 and 10.
+
+```{r}
+ans <- NULL
+#null just means the variable exists but theres nothing in it
+
+for(i in 1:10) {
+  #cat(i, "\n")
+  k <- kmeans(z, centers = i)
+  ans <- c(ans, k$tot.withinss)
+}
+```
+
+```{r}
+ans
+plot(ans, type="o")
+```
+
+## Hierarchical Clustering
+
+The main function for heirarchical clustering in base R is called `hclust()`.
+
+This function does not take our "raw" data directly, rather you must provide it with a "distance matrix" computed from your data. 
+
+```{r}
+d <- dist(z)
+hc <- hclust(d)
+hc
+```
+
+There is a specific plot method for hc results:
+```{r}
+plot(hc)
+abline(h=8, col="red")
+```
+
+We can "cut" our tree at a given height to yield groupings (i.e. clusters). In r we do this with `cutree()`
+```{r}
+cutree(hc, h=8)
+```
+
+We can also run `cutree()` with `k=2` instead of a give `h=` height value.
+
+```{r}
+grps <- cutree(hc, k=2)
+grps
+```
+
+
+#### Make a results figure of our data `z` colored by our Hierarchical Clustering results.
+
+```{r}
+plot(z, col=grps)
+```
+
+
+## Principal Component Analysis
+
+Here we play with some silly data on the unhealthy eating habits of ppl from the UK.
+
+### Data import
+
+>This is copied from the lab on the coursewebsite, but edited with the `row.names=1` bit
+
+```{r}
+url <- "https://tinyurl.com/UK-foods"
+x <- read.csv(url, row.names = 1)
+x
+```
+
+
+```{r}
+barplot(as.matrix(x), beside=T, col=rainbow(nrow(x)))
+```
+
+A plot that is useful is the pairs plot (for pairwise comparisons):
+
+```{r}
+pairs(x, col=rainbow(nrow(x)), pch=16)
+```
+
+```{r}
+library(pheatmap)
+pheatmap( as.matrix(x) )
+```
+
+>These are all kinda booty, finding relationships in out data is hard and be need something better.
+
+## PCA to the rescue
+
+The main function in base r is called `prcomp()`.
+
+For this function we will want to take the transpose of our data so we analyze the foods. 
+
+```{r}
+# t(x) makes the foods the columns instead of the countries
+pca <- prcomp(t(x))
+```
+
+We can see how well our pca PCs are doing:
+
+```{r}
+summary(pca)
+```
+>bc the proportion of variance is like almost 100% within the first 2 PCs means that nearly all the variance in this dataset can be captured on only two axes. 
+
+Lets graph it, so lets call ggplot bc we miss ggplot so much.
+```{r}
+library(ggplot2)
+```
+
+Our main PC plot results figure:
+
+```{r}
+ggplot(pca$x) +
+  aes(PC1, PC2) +
+  geom_point(col=c("orange", "red", "blue", "darkgreen"))
+```
+
+The final plot is called a loadings plot: how the original variables contribute to the PC1.
+
+```{r}
+ggplot(pca$rotation) +
+  aes(PC1, row.names(pca$rotation)) +
+  geom_col()
+```
+
+
+
+
+
+
+
+
+
+
+

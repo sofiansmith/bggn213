@@ -1,0 +1,224 @@
+---
+title: "10232026_ClassWork08"
+author: "Sofia Smith (200310201)"
+date: 10-23-2026
+format: pdf
+toc: true
+---
+
+
+## Background
+
+The goal of this  mini-project is for you to explore a complete analysis using unsupervised learnig methods covered in class.
+
+Today we will analyze a biopsy data-set from fine needle aspirations (FNA) of breast tissue.
+
+## Data Import and Preparation 
+
+```{r}
+# Save your input data file into your Project directory.
+fna.data <- "WisconsinCancer.csv"
+
+# Complete the following code to input the data and store as wisc.df
+wisc.df <- read.csv(fna.data, row.names=1)
+```
+
+We don't need the "diagnosis" column because that's what we're gonna to, so toss it.
+
+```{r}
+# We can use -1 here to remove the first column
+wisc.data <- wisc.df[,-1]
+
+# Create diagnosis vector for later 
+diagnosis <- wisc.df[,1]
+head(diagnosis)
+```
+
+
+
+## Exploratory Analysis
+
+> Q1. How many observations are in this dataset?
+
+```{r}
+nrow(wisc.data)
+```
+
+>Q2. How many of the observations have a malignant diagnosis?
+
+```{r}
+table(wisc.df$diagnosis)
+```
+
+>Q3. How many variables/features in the data are suffixed with `_mean`?
+
+```{r}
+wisc.columnnames <- colnames(wisc.data)
+grep("_mean", wisc.columnnames, value = T)
+```
+
+## Principal Component Analysis (PCA)
+
+We need to scale our data for PC and we can do this by setting the `scale=TRUE` input argument.
+
+```{r}
+wisc.pr <- prcomp(wisc.data, scale=T)
+```
+
+```{r}
+summary(wisc.pr)
+```
+
+>Q4. From your results, what proportion of the original variance is captured by the first principal component (PC1)?
+
+0.4427
+
+>Q5. How many principal components (PCs) are required to describe at least 70% of the original variance in the data?
+
+3 PCs are required (72.6%)
+
+>Q6. How many principal components (PCs) are required to describe at least 90% of the original variance in the data?
+
+7 PCs! Quite a few to get to 91%.
+
+
+
+### Interpreting PCA results
+
+```{r}
+biplot(wisc.pr)
+```
+
+
+>Q7. What stands out to you about this plot? Is it easy or difficult to understand? Why?
+
+It's really hard to read, terrible labels and way too many points.
+
+
+```{r}
+library(ggplot2)
+ggplot(wisc.pr$x) +
+  aes(PC1, PC2, col=diagnosis) +
+  geom_point()
+```
+
+This is a plot for PC1 and PC2 that cover 63% of the variance where pink is benign and teal is malignant. Each point represents a sample and its measured cell characteristics in the dataset. The general idea is that cells with similar characteristics should cluster. 
+
+> Q8. Generate a similar plot for principal components 1 and 3. What do you notice about these plots?
+
+
+```{r}
+ggplot(wisc.pr$x) +
+  aes(PC1, PC3, col=diagnosis) +
+  geom_point()
+```
+
+>Q8. Generate a similar plot for principal components 1 and 3. What do you notice about these plots?
+
+in the PC1 vs. PC3 plot, I notice that the two clusters are less separated from each other than in the PC1 vs PC2 plot.
+Important note: because we mean centered the data earlier, "0" here just means average.
+
+
+### Communicating PCA result
+
+>Q9. For the first principal component, what is the component of the loading vector (i.e. wisc.pr$rotation[,1]) for the feature concave.points_mean? This tells us how much this original feature contributes to the first PC. Are there any features with larger contributions than this one?
+
+The PC1 loading for concave.points_mean is −0.261, and no other feature has a larger contribution. It has the largest impact on PC1, closely followed by concavity_mean (0.258) and concave.points_worst (0.251).
+
+```{r}
+# The value for concave.points_mean on PC1
+wisc.pr$rotation["concave.points_mean", 1]
+
+# All PC1 loadings, ranked by size (absolute value)
+sort(abs(wisc.pr$rotation[, 1]), decreasing = TRUE)
+```
+
+
+## Hierarchical Clustering 
+
+### Results of hierarchical clustering 
+Regular hierarchical clustering on the original data is really not helpful..
+
+```{r}
+d <- dist(scale(wisc.data))
+wisc.hc <- hclust(d)
+plot(wisc.hc)
+abline(h=19, col="red", lty=2)
+```
+
+>Q10. Using the plot() and abline() functions, what is the height at which the clustering model has 4 clusters?
+
+At height `h=9`, the red line cuts off the tree at 4 clusters.
+
+Told to skip #11.
+
+>Q12 How well does the newly created model with four clusters separate out the two diagnoses?
+
+Poorly, this tree tells me very little, giving me no information about the two groups.
+
+## Combining Methods
+
+### Clustering on PCA results
+
+Why might this help? PCA focuses on the directions of greatest variance-potentially giving the clustering algorithm a cleaner signal to work with.
+
+```{r}
+d <- dist(wisc.pr$x[,1:2])
+wisc.pr.hclust <- hclust(d, method="ward.D2")
+plot(wisc.pr.hclust, labels=F)
+```
+
+```{r}
+grps <- cutree(wisc.pr.hclust, k=2)
+table(grps)
+
+```
+
+> Q13. How well does the newly created hclust model with two clusters separate out the two “M” and “B” diagnoses?
+
+This is indicating that our clustered groups are pretty well aligned with the previously determined B vs M diagnoses. 
+
+> Q14. How well do the hierarchical clustering models you created in the previous sections (i.e. without first doing PCA) do in terms of separating the diagnoses? Again, use the `table()` function to compare the output of each model (`wisc.hclust.clusters` and `wisc.pr.hclust.clusters`) with the vector containing the actual diagnoses.
+
+```{r}
+table(grps, diagnosis)
+```
+
+It's not perfect:
+True Positives - 177,
+False Positives - 18,
+True Negatives - 339,
+False Negatives - 35
+
+Sensitivity =  TP/(TP+FN)
+
+Specificity = TN/(TN+FP)
+
+```{r}
+ggplot(wisc.pr$x) +
+  aes(PC1, PC2) +
+  geom_point(col=grps)
+```
+
+## Prediction
+
+```{r}
+#url <- "new_samples.csv"
+url <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url)
+npc <- predict(wisc.pr, newdata=new)
+npc
+```
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grps)
+points(npc[,1], npc[,2], col="blue", pch=16, cex=3)
+text(npc[,1], npc[,2], c(1,2), col="white")
+```
+
+>Q16. Which of these new patients should we prioritize for follow up based on your results?
+
+Given that red represents the benign tumors, I would follow-up with patient 2 because their tumor looks a lot like the malignant tumors of other patients. 
+
+
+

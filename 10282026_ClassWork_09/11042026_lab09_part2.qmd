@@ -1,0 +1,103 @@
+---
+title: "11042026_Class9_Part2_ComparitiveStructureAnalysis"
+format: html
+---
+
+## Background
+
+We will perform PCA of protein structureal data from the PDB.
+
+`get.seq()` - input database identifier 
+`blast.pdb()` or `get.pdb()` - find and dowload structures
+`pdbaln()` - align and superpose structures
+`pca()` - score plot
+
+
+## Set-up
+
+let's load all the packages we're gonnna need FIRST.
+
+```{r, warning=F, message=F}
+library(bio3d)
+library(bio3dview)
+library(ggplot2)
+#BiocManager::install("msa")
+library(msa)
+```
+
+
+## Getting a sequence
+
+Starting with a single sequence ID.
+
+```{r}
+id <- "1ake_A"
+```
+
+```{r}
+aa <- get.seq(id)
+aa
+```
+
+
+> Q10. Which of the packages above is found only on BioConductor and not CRAN? 
+
+> Q11. Which of the above packages is not found on BioConductor or CRAN?: 
+
+> Q12. True or False? Functions from the pak package can be used to install packages from GitHub and BitBucket? 
+
+```{r}
+# Blast or hmmer search 
+#b <- blast.pdb(aa)
+
+# List out some 'top hits'
+#head(hits$pdb.id)
+```
+
+> If blast did not return results (likely due to the large number of simultaneous requests from the class) you can use the following vector of PDB IDs
+
+```{r}
+hits <- NULL
+hits$pdb.id <- c('1AKE_A','6S36_A','6RZE_A','3HPR_A','1E4V_A','5EJE_A','1E4Y_A','3X2S_A','6HAP_A','6HAM_A','4K46_A','3GMT_A','4PZL_A')
+
+# Download releated PDB files
+files <- get.pdb(hits$pdb.id, path="pdbs", split=TRUE, gzip=TRUE)
+
+# Align releated PDBs
+pdbs <- pdbaln(files, fit = TRUE, exefile="msa")
+
+#view.pdbs(pdbs)
+```
+
+
+## PCA
+
+```{r}
+# Perform PCA
+pc.xray <- pca(pdbs)
+plot(pc.xray)
+```
+
+Looks like the first two PCs are plenty, cover 96% of variance.
+
+```{r}
+plot(pc.xray, 1:2)
+```
+
+```{r}
+# view.pca(pc.xray)
+```
+
+Write a wee movie  (called a trajectory) for viewing in Mol* :
+
+```{r}
+mktrj(pc.xray, file="pca_result.pdb")
+```
+
+
+
+
+
+
+
+

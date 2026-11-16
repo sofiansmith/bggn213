@@ -1,0 +1,226 @@
+---
+title: "Lab05: Data Visualization ggplot"
+author: "Sofia Smith (200310201)"
+format: pdf
+toc: true
+---
+
+## Quarto
+
+Today we are going to learn all about the **ggplot2** package in R.
+
+There are many ways to graph in R. These include"base and R graphics" (like the `plot()` function we used the other day) and add on packages like **ggplot2**.
+
+### Comparing base graphics with ggplot
+
+We can use the in-built data frame `cars` to try out plotting (short-cut to insert code section is OPT,CMD,I):
+
+```{r}
+head(cars)
+```
+
+Just using `plot()`:
+```{r}
+plot(cars)
+```
+
+Now with `ggplot2()`:
+**First**, I must install package with `install.packages("ggplot2"). 
+
+> But really, we only want to do this once. Not necessary to download everytime I run/render my quarto. So I've now downloaded it outside of this quarto via the console.
+
+What we *do* need to do every time I want to use a function from a downloaded package though, is **call** the package using `library()`.
+
+> Yes, in one of these lines it says "ggplot**2**" and in the other, is says "ggplot"
+
+```{r}
+library(ggplot2)
+ggplot(cars)
+```
+
+
+Every ggplot needs at least 3 things (they're called layers).
+
+- the **data**: `data= `(data.frame we want to plot from)
+- the **aesthetics**: `aes()` how the data maps, how the columns of the data map to the plot) 
+- the **geometry**: `geom_ ` (do you want the plot drawn, points, lines, wvr)
+
+```{r}
+library(ggplot2)
+ggplot(data=cars) +
+  aes(x=speed, y=dist) +
+  geom_point() +
+  geom_smooth(method="lm", se=F) +
+  theme_bw() +
+    labs(x="Speed (MPH)",
+         y="Stopping Distance (ft)",
+         title="Silly Plot of Stopping Distances")
+```
+
+The layered approach for ggplot allows for easier customizing, eventhough the basic plotting is "more complex" than the simple `plot()` function. 
+
+
+## Gene Expression Plot
+
+Read the data from online:
+
+```{r}
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+```
+
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+geneplot <- ggplot(data=genes) +
+            aes(x=Condition1, y=Condition2, col=State) +
+            geom_point() +
+            theme_bw() +
+              labs(x="Control (No Drug)",
+                   y="Drug Treatment",
+                  title="Gene Expression Changes Upon Drug Treatment",
+                  subtitle= "GLP-1 inhibitor from Novo")
+#geneplot + scale_color_manual(values=c("green4", "grey", "pink3"))
+
+geneplot + scale_color_manual(values = wes_palette("GrandBudapest2", n=3))
+```
+
+Q. How many are upregulated? There's a few ways to do this.
+
+```{r}
+table(genes$State)
+```
+
+```{r}
+sum(genes$State == "up")
+sum(genes$State == "down")
+```
+
+Q. What percentage of genes are "down" regulated?
+
+```{r}
+n_total <- nrow(genes)
+n_down <- sum(genes$State == "down")
+
+genes_down <- n_down/n_total * 100
+round(genes_down, 2)
+```
+
+
+```{r}
+genes_down <- sum(genes$State == "down")/ nrow(genes) * 100 
+ans <- round (genes_down, 2)
+```
+
+The percentage of down genes is `r ans`%.
+
+> Theres a million ways to do this of course, pick and remember your favorites. 
+
+We can install exta packages with `install.packages()` like Wes Anderson color palettes (see above), or something useful like **patchwork** for combining plots into all sorts of arrangements.
+
+> Remember, downloading must happen in the **console** for running in your code via `install.packages("")`
+
+```{r}
+library(patchwork)
+
+# Setup some example plots 
+p1 <- ggplot(mtcars) + geom_point(aes(mpg, disp))
+p2 <- ggplot(mtcars) + geom_boxplot(aes(gear, disp, group = gear))
+p3 <- ggplot(mtcars) + geom_smooth(aes(disp, qsec))
+p4 <- ggplot(mtcars) + geom_bar(aes(carb))
+
+# Use patchwork to combine them here:
+(p1 | p2 | p3) /
+      p4
+```
+
+```{r}
+(p1 | p2 ) /
+  ( p3 | p4 )
+```
+
+
+> The `facet_wrap(~)` separates your data by the specified variable.
+
+
+```{r}
+geneplot +
+  facet_wrap(~State)
+```
+
+
+## Gapminder data
+
+This is a famous list and has a lot of plottable material.
+
+```{r}
+# File location online
+url <- "https://raw.githubusercontent.com/jennybc/gapminder/master/inst/extdata/gapminder.tsv"
+
+gapminder <- read.delim(url)
+head(gapminder)
+```
+
+Q. How many data entries are there in this dataset?
+```{r}
+nrow(gapminder)
+```
+
+
+Q. How many countries are there in this dataset?
+```{r}
+length(unique(gapminder$country))
+```
+
+Lets plot.
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+gapplot <- ggplot(gapminder) +
+                aes(gdpPercap, lifeExp, col=continent) +
+                geom_point(alpha=0.5)
+gapplot + scale_color_manual(values = wes_palette("Moonrise3"))
+```
+
+..maybe a histogram..
+
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+gapplot <- ggplot(gapminder) +
+                aes(lifeExp, fill=continent) +
+                geom_histogram(alpha=0.75)
+gapplot + scale_color_manual(values = wes_palette("Moonrise3"))
+```
+
+..or separated by continent..
+
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+gapplot <- ggplot(gapminder) +
+                aes(gdpPercap, lifeExp, col=continent) +
+                geom_point(alpha=0.5)
+gapplot + scale_color_manual(values = wes_palette("Moonrise3")) 
+gapplot + facet_wrap(~continent)
+```
+
+..a boxplot perhaps..
+
+```{r}
+library(ggplot2)
+library(wesanderson)
+
+gapplot <- ggplot(gapminder) +
+                aes(lifeExp, fill=continent) +
+                geom_boxplot(alpha=0.5)
+gapplot + scale_color_manual(values = wes_palette("Zissou1"))
+```
+
+
+

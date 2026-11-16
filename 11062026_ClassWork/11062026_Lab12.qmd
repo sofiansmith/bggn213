@@ -1,0 +1,273 @@
+---
+title: "11062026_Lab13"
+author: "Sofia Smith (200310201)"
+format: pdf
+---
+
+
+## Background
+
+The data for this hands-on session comes from a published RNA-seq experiment where airway smooth muscle cells (ASMs) were treated with dexamethasone (dex), a synthetic glucocorticoid steroid with anti-inflammatory effects (Himes et al. 2014).
+
+```{r}
+#BiocManager::install("DESeq2")
+
+library(BiocGenerics)
+library(DESeq2)
+```
+
+
+## Data Import
+
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <- read.csv("airway_metadata.csv")
+```
+
+> Q1. How many genes are in this dataset? 
+
+```{r}
+nrow(counts)
+```
+
+> Q2. How many total samples do we have and of those, how many ‘control’ cell lines do we have? 
+
+```{r}
+nrow(metadata)
+
+#two ways to answer the controls part of this question
+count(metadata$dex == "control")
+table(metadata$dex)
+```
+
+There are a total of 8 samples, 4 of which are controls.
+
+
+## Analysis
+
+Lets just take out control samples and put theem in a table and then the same for treated. `Data.frames` !! 
+
+```{r}
+control.inds <- metadata$dex == "control"
+control.counts <- counts[, control.inds]
+dim(control.counts)
+
+treated.inds <- metadata$dex == "treated"
+treated.counts <- counts[, treated.inds]
+dim(treated.counts)
+```
+
+```{r}
+control.mean <- rowMeans(control.counts)
+treated.mean <- rowMeans(treated.counts)
+
+meancounts <- data.frame(control.mean, treated.mean)
+head(meancounts)
+```
+
+>Q3. How would you make the above code in either approach more robust? Is there a function that could help here? 
+
+Using `rowMeans()` is better than using something like `rowSums()/4` because then you're not hard ocdin how many rows there are incase there are more rows in a different data set. 
+
+>Q4. Follow the same procedure for the treated samples (i.e. calculate the mean per gene across drug treated samples and assign to a labeled vector called treated.mean)
+
+Done, see above.
+
+> Q5 (a). Create a scatter plot showing the mean of the treated samples against the mean of the control samples.
+
+```{r}
+plot(meancounts)
+```
+
+>Q5(b) and Q6. You could also use the ggplot2 package to make this figure producing the plot below. Try plotting both axes on a log scale.
+
+```{r}
+library(ggplot2)
+ggplot(meancounts, aes(control.mean, treated.mean)) +
+  geom_point(alpha=0.2) +
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+We often use the concept of "fold-change" this is just the log fraction of treated over control.
+
+```{r}
+20/20
+log2(20/20)
+
+40/20
+log2(40/20)
+
+20/40
+log2(20/40)
+```
+
+```{r}
+meancounts$log2fc <- log2(meancounts$treated.mean/meancounts$control.mean)
+
+head(meancounts)
+```
+
+```{r}
+#zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+#to.rm <- unique(zero.vals[,1])
+#counts <- meancounts[-to.rm,]
+#head(counts)
+```
+
+> Q7. What is the purpose of the `arr.ind` argument in the `which()` function call above? Why would we then take the first column of the output and need to call the `unique()` function?
+
+The `arr.ind` argument makes `which()` to give us the table info for the genes that it is `TRUE` for. The `unique()` would makes sure that we don't call anything twice.
+
+
+Now, the NaN is returned when you divide by zero and try to take the log. The -Inf is returned when you try to take the log of zero. It turns out that there are a lot of genes with zero expression. Let’s filter our data to remove these genes.
+
+```{r}
+to.keep <- rowSums(meancounts[,1:2]) > 10
+mycounts <- meancounts[to.keep,]
+```
+
+>Q8. How many genes are left? How many are upregulated
+
+```{r}
+nrow(mycounts)
+sum(mycounts$log2fc >= 2)
+```
+
+>Q9. How many down regulated genes we have at the greater than 2 fc level? 
+
+```{r}
+sum(mycounts$log2fc <= -2)
+```
+
+>Q10. Do you trust these results? Why or why not?
+
+Not yet, we haven't done any statistical analysis! 
+
+
+## DESeq analysis
+
+Let's put some stats behind these numbers.
+
+```{r, message=F}
+library(DESeq2)
+```
+
+Must supply 3 things in a very soecific data structure:
+
+- countData (our counts)
+
+- colData(our metadata)
+
+- design(the setup of our experiment)
+
+```{r}
+#dds (deseq data set) is what its called in all the manuals
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = metadata,
+                              design = ~dex)
+```
+
+```{r}
+dds <- DESeq(dds)
+
+res <- results(dds)
+head(res)
+```
+
+## Save our results
+
+```{r}
+write.csv(res, file="my_DESeq_results.csv")
+```
+
+## Summary results figure
+
+A common summary figure is a volcano plot which combines log2 fold changes and adjusted p-values. 
+
+```{r}
+ggplot(res, aes(log2FoldChange, -log(padj))) +
+    geom_point() +
+    geom_vline(xintercept = c(+2,-2), col="magenta") +
+    geom_hline(yintercept = -log(0.05), col="magenta")
+```
+
+Let's add color to be less boring.
+
+```{r}
+my.cols <- rep("gray", nrow(res))
+my.cols[res$log2FoldChange>=2] <- "pink"
+my.cols[res$log2FoldChange<=-2] <- "lightblue"
+my.cols[res$padj>0.05] <- "grey"
+
+ggplot(res, aes(log2FoldChange, -log(padj))) +
+    geom_point(col=my.cols) +
+    geom_vline(xintercept = c(+2,-2), col="magenta") +
+    geom_hline(yintercept = -log(0.05), col="magenta")
+```
+
+
+## Adding annotation data
+
+```{r, message=F, warning=F}
+BiocManager::install("AnnotationDbi")
+BiocManager::install("org.Hs.eg.db")
+
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our gene names
+                     keytype="ENSEMBL",        # The format of our gene names
+                     column="SYMBOL",          # The new format we want to add
+                     multiVals="first")
+
+head(res)
+```
+
+
+> Q11. Run the mapIds() function two more times to add the Entrez ID and UniProt accession and GENENAME as new columns called res$entrez, res$uniprot and res$genename
+
+```{r}
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="ENTREZID",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+res$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="UNIPROT",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="GENENAME",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+head(res)
+```
+
+Let's organize by p-value:
+
+```{r}
+ord <- order(res$padj)
+head(res[ord,])
+
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+
+
+
+
+

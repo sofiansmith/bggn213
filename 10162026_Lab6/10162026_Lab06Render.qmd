@@ -1,0 +1,241 @@
+---
+title: "R Functions Lab06"
+author: "Sofia Smith (200310201)"
+date: 2026-10-16
+format: pdf
+---
+
+## Background
+
+All functions have at least 3 things:
+
+- a *name* (we get to pick this)
+- inout *arguments* (one or more separated inputs)
+- the *body* (the lines of the R code that do work of the function)
+
+## A first function 
+
+Let's write a function to add to some numbers
+
+```{r}
+add <- function(x, y=0) {
+  x + y
+}
+```
+
+We can test it out!
+```{r}
+add(1, 100)
+add(c(1,2,10), 100)
+```
+
+> Function arguments can be **required** or **optional**. This just means that **opitional**s have a default fallback value thats used if the user does not supply one. (like our `y` input above, or `z` below)
+
+What if I wanted to run out `add()` function with three inputs?
+
+```{r}
+add <- function(x, y=0, z=0) {
+  x + y + z
+}
+```
+
+```{r}
+add(1,20,100)
+add(1,20)
+```
+
+R also can take any number of inputs that you don't have to spell out like our `x` `y` and `z`, via an elipse `...` used as a catch-all input argument.
+
+```{r}
+add <- function(...) {
+  sum(...)
+}
+```
+
+```{r}
+add(3, 7, 8, 27, 4)
+```
+
+
+We can explicitly return a value from a function with the special function `return`. It is often a good thing to use to keep the function clean, even if you don't think you need it. 
+
+## A DNA sequence generator
+
+Write a wee function to generate a random nucleotide sequence of a user specified length.
+
+A useful function to start with is the `sample()` function. 
+
+```{r}
+sample(x = c("A","G","C","T"), size=7, replace=TRUE)
+```
+
+> Make sure that you set `replace=True` if your sample is more than your input pool!! 
+
+This is our working "snipet" of code that does what we want so lets make it a function.
+
+```{r}
+generate_dna <- function(seqlength){
+  sample(c("A", "G", "C", "T"), size=seqlength, replace=T)
+}
+```
+
+```{r}
+x <- generate_dna(7)
+x
+```
+
+Now that's great, but they're all separated and I can't copy/paste them :/
+
+### Optional format switch
+
+Rn we're getting a multi-element character vector, which is not all that great for some things. Maybe I want "GGTGAACTA"!
+
+So we're going to use the function `paste()`
+
+```{r}
+paste(x, collapse = "")
+paste(x)
+```
+
+So if we put it all together, it might look like this:
+
+```{r}
+generate_dna <- function(seqlength){
+  n <- sample(c("A", "G", "C", "T"), size=seqlength, replace=T)
+  paste(n, collapse="")
+}
+```
+
+And now to create my n-long DNA sequence:
+```{r}
+generate_dna(25)
+```
+
+We want to allow the user to pick the format, for this we can use a T/F + if/else kind of input argument...
+
+```{r}
+generate_dna <- function(seqlength=25, fasta=TRUE){
+  n <- sample(c("A", "G", "C", "T"), size=seqlength, replace=T)
+
+  if(fasta) {
+    paste(n, collapse="")
+  } else {
+    paste(n)
+  } 
+}
+```
+
+you could also do this without if AND else, just an explicit `return()`. 
+
+```{r}
+generate_dna <- function(seqlength=25, fasta=TRUE){
+  n <- sample(c("A", "G", "C", "T"), size=seqlength, replace=T)
+
+  if(fasta) {
+    n <- paste(n, collapse="")
+  } 
+  return(n)
+}
+```
+> In this one, you just return `n` in it's original format bc the `if` didn't run to rewrite `n`.
+
+```{r}
+seq <- generate_dna(6, fasta=TRUE)
+seq
+```
+
+```{r}
+seq <- generate_dna(6, fasta=FALSE)
+seq
+```
+
+We want the FASTA format that everyone uses though.
+
+```{r}
+generate_dna <- function(seqlength=25, fasta=TRUE){
+  n <- sample(c("A", "G", "C", "T"), size=seqlength, replace=T)
+
+  if(fasta) {
+    id <- paste(">len", seqlength)
+    n <- paste(n, collapse="")
+    
+    cat(id, n, sep = "\n")
+  } 
+  return(n)
+}
+```
+
+```{r}
+x <- generate_dna(25,T)
+```
+
+## Generate a protein sequence
+
+Q. Write a function called `generate_protein()` that returns a random aa sequence of a user specified length in FASTA format
+
+```{r}
+generate_protein <- function(seqlength=25, fasta=TRUE){
+  n <- sample(c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V"), size=seqlength, replace=T)
+ 
+  if(fasta) {
+    id <- paste(">len", seqlength)
+    n <- paste(n, collapse="")
+    
+    cat(id, n, sep = "\n")
+  } 
+  return(n)
+}
+```
+
+
+Q. Use the new function to make a series of random protein sequences ranging 6-13 aas.
+
+```{r}
+seq1 <- generate_protein(6,T)
+seq2 <- generate_protein(7,T)
+seq3 <- generate_protein(8,T)
+seq4 <- generate_protein(9,T)
+seq5 <- generate_protein(10,T)
+seq6 <- generate_protein(11,T)
+seq7 <- generate_protein(12,T)
+seq8 <- generate_protein(13,T)
+```
+
+..or, you can run a loop-type search and
+```{r}
+for(i in 6:13){
+  x <- generate_protein(i)
+}
+```
+
+use `sapply` function
+```{r}
+x <- sapply(6:13, generate_protein)
+x
+```
+
+
+Q5. BLASTp search against your generated peptides, are they unique in nature? (sequences used from not-loop query). 
+
+```{r}
+length <- c(6:13)
+hit_Identity <- c(100, 100, 87.50, 100, 90, 90, 90.91, 91.67)
+hit_Coverage <- c(100, 100, 100, 89, 100, 91, 92, 92)
+uniqueness <- c("N", "N", "Y", "Y", "Y", "Y", "Y", "Y")
+  
+my_protein_table <- data.frame("Length (aa)" = length,
+                               "Best hit % Identity" = hit_Identity,
+                               "Best hit % Coverage" = hit_Coverage,
+                               "Unique? (N/Y)" = uniqueness)
+
+knitr::kable(my_protein_table)
+```
+
+
+Q5a. I start getting unique sequences at 8 amino acids. At this point, BLASTp either outputs <100% identity or coverage which means they are entirely unique.
+
+Q5b. Very short sequences are found in nr because the shorter the aa length, the more likely it is to be repeated. Short random random peptides are found because the space for those peptides is much smaller than the size of the known protein size.
+
+Q6. The minimun length for an antigen peptide should be 8 or 9 amino acids because anything smaller than that would not be unique. What that really means, is that an antigen would not be a unique identifier with anything less than 8 amino acids: T or B cells would be presented with an antigen that might cause them to react to something other than what that antigen came from. As it turns out, the physical space in the MHCI and MHCII proteins is perfect for 8-9aas.
+
+

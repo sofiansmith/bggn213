@@ -1,0 +1,120 @@
+---
+title: "11042026_lab11"
+author: "Sofia Smith (200310201)"
+format: pdf
+---
+
+## Background
+
+We ran Alphafold2 from [colabfold](https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb). 
+
+We will 
+
+1. Read all model AF2 files
+
+2. Calculate RMSD between all models
+
+3. Calculate RMSF between all residues of all models
+
+4. Examine AF2 scores pLDDT and PAE
+
+5. Calculate residue conservation scores for all residues
+
+## HIV-Pr Monomer
+
+We get a zip archive file from colabfold that I have moved ans uniped in the project directory.
+
+### 1. Input all models
+
+```{r}
+model_dir <- "hivp_monomer_94b5b/"
+
+list.files(model_dir)
+```
+
+```{r}
+pdb_files <- list.files(model_dir,
+                        pattern=".pdb",
+                        full.names = T)
+```
+
+
+```{r}
+library(bio3d)
+pdbs <- pdbaln(pdb_files, fit=T, exefile="msa")
+```
+
+### 2. RMSD
+
+```{r}
+rd <- rmsd(pdbs)
+
+library(pheatmap)
+
+colnames(rd) <- paste0("m",1:5)
+rownames(rd) <- paste0("m",1:5)
+
+pheatmap(rd)
+```
+
+### 3. RMSF per residue
+
+```{r}
+rf <- rmsf(pdbs$xyz)
+
+plot(rf, type="h")
+```
+
+
+```{r}
+plot(pdbs$b[1,], typ="l")
+points(pdbs$b[2,], typ="l", col="pink")
+points(pdbs$b[3,], typ="l", col="magenta")
+points(pdbs$b[4,], typ="l", col="purple")
+points(pdbs$b[5,], typ="l", col="red")
+```
+
+> We want the consercation to be in the high peak bits. This is plotting b-factor collomn. The higher the b-factor, the more confident we are about the model.
+
+### 5. Residue conservation scores
+
+```{r}
+list.files(model_dir, pattern=".a3m", full.names=T)
+```
+
+```{r}
+aln_file <- list.files(model_dir, pattern=".a3m", full.names=T)
+
+aln <- read.fasta(aln_file, to.upper=T)
+```
+
+
+```{r}
+s <- conserv(aln)
+s
+
+plot(s, typ="h")
+```
+
+```{r}
+consensus(aln, cutoff = 0.9)$seq
+```
+
+```{r}
+library(bio3dview)
+
+#view.pdbs(pdbs)
+```
+
+
+> This is what we're doing for the Find A Gene Project! 
+
+
+
+
+
+
+
+
+
+
